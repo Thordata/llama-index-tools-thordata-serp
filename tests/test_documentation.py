@@ -99,9 +99,11 @@ def test_project_metadata_matches_the_documented_public_package():
     metadata = tomllib.loads(PYPROJECT.read_text(encoding="utf-8"))
     document = readme()
 
+    from llama_index.tools.thordata_serp import __version__
+
     project = metadata["project"]
     assert project["name"] == "llama-index-tools-thordata-serp"
-    assert project["version"] == "0.1.0"
+    assert project["version"] == __version__
     assert project["authors"] == [{"name": "Thordata"}]
     assert metadata["tool"]["llamahub"]["import_path"] == "llama_index.tools.thordata_serp"
     assert metadata["tool"]["llamahub"]["class_authors"] == {"ThordataSerpToolSpec": "Thordata"}

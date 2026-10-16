@@ -4,7 +4,7 @@
 
 [**Thordata**](https://www.thordata.com/?ls=github01&lk=github01) gives your LlamaIndex Agent **real-time, structured web search** through a single schema-driven tool.
 
-`llama-index-tools-thordata-serp` version `0.1.0` plugs Thordata's SERP API into your LlamaIndex workflow. The public import path is `llama_index.tools.thordata_serp`. `ThordataSerpToolSpec` exposes live search engines through predictable, agent-ready JSON, so a `FunctionAgent` can search the web, news, images, maps, shopping, flights, scholar, and local results through one interface.
+`llama-index-tools-thordata-serp` version `0.1.1` plugs Thordata's SERP API into your LlamaIndex workflow. The public import path is `llama_index.tools.thordata_serp`. `ThordataSerpToolSpec` exposes live search engines through predictable, agent-ready JSON, so a `FunctionAgent` can search the web, news, images, maps, shopping, flights, scholar, and local results through one interface.
 
 **Why teams pick it:**
 
