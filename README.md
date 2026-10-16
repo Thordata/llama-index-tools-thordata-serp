@@ -24,7 +24,7 @@ python -m pip install llama-index-tools-thordata-serp
 
 The runtime dependencies are `llama-index-core>=0.13.0,<0.15`, `pydantic>=2.0,<3.0`, and `requests>=2.32,<3.0`.
 
-Create a Thordata SERP API key in the [Thordata dashboard](https://www.thordata.com) and set it in the calling environment. The tool spec does not read environment variables itself; read and pass the key explicitly:
+Create a Thordata SERP API key in the [Thordata dashboard](https://www.thordata.com/?ls=github01&lk=github01) and set it in the calling environment. The tool spec does not read environment variables itself; read and pass the key explicitly:
 
 ```python
 import os
@@ -161,4 +161,4 @@ The smoke request requires a valid key and can make a live request. The test sui
 
 ### Support and license
 
-For package support, contact Thordata through the [Thordata website](https://www.thordata.com). This package is released under the MIT License; see `LICENSE`.
+For package support, contact Thordata through the [Thordata website](https://www.thordata.com/?ls=github01&lk=github01). This package is released under the MIT License; see `LICENSE`.
