@@ -136,9 +136,9 @@ def test_serp_encodes_unicode_form_as_utf8(monkeypatch):
 
     monkeypatch.setattr(client_module.requests, "post", fake_post)
 
-    SerpClient("key").request({"engine": "google", "q": "咖啡", "json": "1"})
+    SerpClient("key").request({"engine": "google", "q": "coffee \u2615", "json": "1"})
 
-    assert captured["data"] == "engine=google&q=%E5%92%96%E5%95%A1&json=1"
+    assert captured["data"] == "engine=google&q=coffee+%E2%98%95&json=1"
 
 
 def test_serp_rejects_oversized_encoded_request_before_network(monkeypatch):
@@ -167,7 +167,7 @@ def test_serp_rejects_raw_unicode_over_limit_before_quoting_or_network(monkeypat
 
     monkeypatch.setattr(client_module, "quote_plus", spy_quote_plus, raising=False)
     monkeypatch.setattr(client_module.requests, "post", fail_post)
-    raw_value = "咖" * (MAX_REQUEST_SIZE // len("咖".encode("utf-8")) + 1)
+    raw_value = "\u2615" * (MAX_REQUEST_SIZE // len("\u2615".encode("utf-8")) + 1)
 
     with pytest.raises(ValueError, match="SERP request exceeds"):
         SerpClient("key").request({"q": raw_value})
@@ -179,7 +179,7 @@ def test_serp_rejects_raw_unicode_over_limit_before_quoting_or_network(monkeypat
     "value_factory",
     [
         lambda: "x" * MAX_REQUEST_SIZE,
-        lambda: "咖" * (MAX_REQUEST_SIZE // len("咖".encode("utf-8")) + 1),
+        lambda: "\u2615" * (MAX_REQUEST_SIZE // len("\u2615".encode("utf-8")) + 1),
     ],
     ids=["ascii", "unicode"],
 )
@@ -209,7 +209,7 @@ def test_serp_rejects_raw_oversized_components_before_quote_plus(monkeypatch, va
     "value_factory",
     [
         lambda: " " * 8 + "/" * (MAX_REQUEST_SIZE // 3),
-        lambda: "咖" * (MAX_REQUEST_SIZE // 9 + 1),
+        lambda: "\u2615" * (MAX_REQUEST_SIZE // 9 + 1),
         lambda: b"\x00" * (MAX_REQUEST_SIZE // 3 + 1),
     ],
     ids=["spaces-and-ascii-escapables", "unicode", "bytes"],
@@ -287,7 +287,7 @@ def test_serp_accepts_encoded_body_exactly_at_request_limit(monkeypatch):
     "form",
     [
         {"engine": "google", "q": "coffee and tea", "json": "1"},
-        {"q": "咖啡", "country": "CN"},
+        {"q": "coffee \u2615", "country": "US"},
         {"q": b"a b/\x00", "page": 1},
     ],
 )

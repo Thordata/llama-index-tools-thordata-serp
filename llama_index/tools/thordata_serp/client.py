@@ -1,7 +1,7 @@
 """Bounded HTTP clients for Thordata schema and SERP requests."""
 
 import json
-from typing import Any, Mapping
+from typing import Any, Callable, Mapping
 from urllib.parse import quote_plus, urlparse
 
 import requests
@@ -32,10 +32,17 @@ def _timeout(value: Any, name: str) -> int:
     return value
 
 
-def _read_limited(response: requests.Response) -> bytes:
+def _read_limited(
+    response: requests.Response,
+    *,
+    max_size: int = MAX_RESPONSE_SIZE,
+    check_deadline: Callable[[], Any] | None = None,
+) -> bytes:
+    if check_deadline is not None:
+        check_deadline()
     content_length = response.headers.get("Content-Length")
     try:
-        if content_length is not None and int(content_length) > MAX_RESPONSE_SIZE:
+        if content_length is not None and int(content_length) > max_size:
             raise ResponseError("response exceeds maximum size")
     except ValueError:
         pass
@@ -43,12 +50,16 @@ def _read_limited(response: requests.Response) -> bytes:
     chunks: list[bytes] = []
     total = 0
     for chunk in response.iter_content(chunk_size=_STREAM_CHUNK_SIZE):
+        if check_deadline is not None:
+            check_deadline()
         if not chunk:
             continue
         total += len(chunk)
-        if total > MAX_RESPONSE_SIZE:
+        if total > max_size:
             raise ResponseError("response exceeds maximum size")
         chunks.append(chunk)
+    if check_deadline is not None:
+        check_deadline()
     return b"".join(chunks)
 
 

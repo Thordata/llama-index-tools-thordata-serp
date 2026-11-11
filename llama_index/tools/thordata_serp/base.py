@@ -6,7 +6,7 @@ from typing import Any, Literal
 
 import requests
 from llama_index.core.tools.tool_spec.base import BaseToolSpec
-from pydantic import BaseModel, Field, StrictStr, ValidationError
+from pydantic import BaseModel, Field, StrictBool, StrictInt, StrictStr, ValidationError
 
 from .client import (
     DEFAULT_SCHEMA_ENDPOINT,
@@ -24,6 +24,7 @@ from .response import (
 )
 from .schema import SchemaError, SchemaRepository, find_engine
 from .serializer import ParameterError, serialize_search
+from .web_scraper import ThorDataWebScraperError, run_web_scraper
 
 
 class ListEnginesInput(BaseModel):
@@ -50,15 +51,26 @@ class SearchInput(BaseModel):
     )
 
 
+class ScrapeInput(BaseModel):
+    """Input for one of the fixed Thordata Web Scraper spiders."""
+
+    spider_id: StrictStr = Field(description="One of the seven supported Web Scraper spiders.")
+    params: dict = Field(default_factory=dict, description="Spider-specific fixed parameters.")
+    max_wait_seconds: StrictInt = Field(default=300, ge=1, le=300)
+    include_errors: StrictBool = Field(default=True)
+    file_name: StrictStr = Field(default="{{TasksID}}", min_length=1)
+
+
 class ThordataSerpToolSpec(BaseToolSpec):
     """Tool specification for Thordata SERP operations."""
 
-    spec_functions = ["list_engines", "get_engine_schema", "search"]
+    spec_functions = ["list_engines", "get_engine_schema", "search", "scrape"]
 
     _input_schemas = {
         "list_engines": ListEnginesInput,
         "get_engine_schema": GetEngineSchemaInput,
         "search": SearchInput,
+        "scrape": ScrapeInput,
     }
 
     def __init__(
@@ -173,6 +185,70 @@ class ThordataSerpToolSpec(BaseToolSpec):
             return self._error_result(error, error_type="ValueError")
         except (SchemaError, ResponseError, SerpApiError, requests.RequestException) as error:
             return self._error_result(error)
+
+    def scrape(
+        self,
+        spider_id: str,
+        params: dict | None = None,
+        max_wait_seconds: int = 300,
+        include_errors: bool = True,
+        file_name: str = "{{TasksID}}",
+    ) -> str:
+        """Run one fixed Thordata Web Scraper task and return JSON records."""
+        try:
+            request_input = ScrapeInput.model_validate(
+                {
+                    "spider_id": spider_id,
+                    "params": params,
+                    "max_wait_seconds": max_wait_seconds,
+                    "include_errors": include_errors,
+                    "file_name": file_name,
+                }
+            )
+            result = run_web_scraper(
+                self._api_key,
+                request_input.spider_id,
+                request_input.params,
+                max_wait_seconds=request_input.max_wait_seconds,
+                include_errors=request_input.include_errors,
+                file_name=request_input.file_name,
+            )
+            return self._json_result(
+                {
+                    "ok": True,
+                    "status": result.status,
+                    "spider_id": result.spider_id,
+                    "task_id": result.task_id,
+                    "record_count": result.record_count,
+                    "error_record_count": result.error_record_count,
+                    "records": result.records,
+                }
+            )
+        except ValidationError as error:
+            return self._scrape_error_result(error, error_type="ValueError")
+        except ThorDataWebScraperError as error:
+            return self._scrape_error_result(error)
+
+    def _scrape_error_result(self, error: Exception, error_type: str | None = None) -> str:
+        payload: dict[str, Any] = {
+            "ok": False,
+            "error": {
+                "type": error_type or type(error).__name__,
+                "message": _safe_message(
+                    str(error), "Web Scraper request failed", self._api_key
+                ),
+            },
+        }
+        if isinstance(error, ThorDataWebScraperError):
+            payload["error"]["code"] = error.error_code
+            payload["error"]["stage"] = error.stage
+            if error.service_code is not None:
+                payload["error"]["service_code"] = error.service_code
+            if error.spider_id:
+                payload["error"]["spider_id"] = error.spider_id
+            if error.task_id:
+                payload["error"]["task_id"] = error.task_id
+        return self._json_result(payload)
 
     @staticmethod
     def _iter_engines(schema: dict[str, Any]):

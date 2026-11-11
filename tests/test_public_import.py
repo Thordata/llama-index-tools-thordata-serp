@@ -1,5 +1,3 @@
-import re
-
 from llama_index.core.tools.tool_spec.base import BaseToolSpec
 
 from llama_index.tools.thordata_serp import ThordataSerpToolSpec, __version__
@@ -11,5 +9,7 @@ def test_public_import_contract():
         "list_engines",
         "get_engine_schema",
         "search",
+        "scrape",
     ]
-    assert re.fullmatch(r"\d+\.\d+\.\d+", __version__)
+    assert callable(ThordataSerpToolSpec.scrape)
+    assert __version__ == "0.2.0"

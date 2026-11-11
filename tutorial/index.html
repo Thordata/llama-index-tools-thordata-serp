@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Live Web Search for LlamaIndex Agents With Thordata</title>
+<meta name="description" content="Build a LlamaIndex FunctionAgent that searches the web in real time with the Thordata SERP API: install the tool spec, inspect the live engine schema, run a real search and stream the agent's tool calls.">
+<style>
+  :root {
+    --brand: #0f9d76;
+    --brand-dark: #0b7d5e;
+    --ink: #16181d;
+    --muted: #5c6470;
+    --line: #e6e8ec;
+    --bg: #ffffff;
+    --code-bg: #f6f7f9;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font: 17px/1.7 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  .wrap { max-width: 820px; margin: 0 auto; padding: 48px 24px 96px; }
+  .eyebrow {
+    display: inline-block;
+    font-size: 12px;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--brand);
+    font-weight: 700;
+    margin-bottom: 14px;
+  }
+  h1 { font-size: 40px; line-height: 1.2; margin: 0 0 16px; letter-spacing: -0.02em; }
+  .deck { font-size: 19px; color: var(--muted); margin: 0 0 22px; }
+  .byline { font-size: 14px; color: var(--muted); border-bottom: 1px solid var(--line); padding-bottom: 22px; margin-bottom: 34px; }
+  h2 { font-size: 27px; margin: 54px 0 14px; letter-spacing: -0.01em; }
+  h3 { font-size: 20px; margin: 36px 0 10px; }
+  h4 { font-size: 17px; margin: 26px 0 8px; }
+  p { margin: 0 0 18px; }
+  ul, ol { margin: 0 0 18px; padding-left: 24px; }
+  li { margin-bottom: 7px; }
+  a { color: var(--brand); }
+  code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.88em;
+    background: var(--code-bg);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 1px 5px;
+  }
+  pre {
+    background: var(--code-bg);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 16px 18px;
+    overflow-x: auto;
+    margin: 0 0 20px;
+  }
+  pre code { background: none; border: 0; padding: 0; font-size: 13.5px; line-height: 1.6; }
+  figure { margin: 26px 0 30px; }
+  /* Never scale a screenshot above its natural size — upscaling is what makes UI text look soft. */
+  figure img {
+    max-width: 100%;
+    width: auto;
+    height: auto;
+    margin: 0 auto;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    display: block;
+  }
+  /* Wide figures break out of the text column so console text stays legible. */
+  figure.wide { width: min(1120px, 94vw); margin-left: 50%; transform: translateX(-50%); }
+  figcaption { font-size: 13.5px; color: var(--muted); margin-top: 10px; }
+  table { width: 100%; border-collapse: collapse; margin: 0 0 22px; font-size: 15px; }
+  th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-weight: 600; background: var(--code-bg); }
+  .callout {
+    border-left: 3px solid var(--brand);
+    background: #f2fbf8;
+    padding: 14px 18px;
+    border-radius: 0 8px 8px 0;
+    margin: 0 0 22px;
+    font-size: 15.5px;
+  }
+  .callout p:last-child { margin-bottom: 0; }
+  .toc {
+    background: var(--code-bg);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 18px 22px;
+    margin: 0 0 30px;
+    font-size: 15px;
+  }
+  .toc strong { display: block; margin-bottom: 8px; font-size: 13px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+  .toc ol { margin: 0; padding-left: 20px; }
+  hr { border: 0; border-top: 1px solid var(--line); margin: 48px 0; }
+  .step-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px; height: 26px;
+    border-radius: 50%;
+    background: var(--brand);
+    color: #fff;
+    font-size: 14px;
+    font-weight: 700;
+    margin-right: 8px;
+    vertical-align: 2px;
+  }
+</style>
+<!-- SEO / social. canonical, hreflang and og:url need the final public URLs,
+     which are not known while the tutorial lives in a folder. Add them at publish time, e.g.
+     <link rel="canonical" href="https://www.example.com/blog/thordata-llamaindex-serp">
+     <link rel="alternate" hreflang="en" href="https://www.example.com/blog/thordata-llamaindex-serp">
+     <meta property="og:url" content="https://www.example.com/blog/thordata-llamaindex-serp">
+     <meta property="og:image" content="https://www.example.com/blog/img/thordata-llamaindex-serp.png"> -->
+<meta property="og:type" content="article">
+<meta property="og:title" content="Live Web Search for LlamaIndex Agents With Thordata">
+<meta property="og:description" content="Build a LlamaIndex FunctionAgent that searches the web in real time with the Thordata SERP API: install the tool spec, inspect the live engine schema, run a real search and stream the agent's tool calls.">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Live Web Search for LlamaIndex Agents With Thordata">
+<meta name="twitter:description" content="Build a LlamaIndex FunctionAgent that searches the web in real time with the Thordata SERP API: install the tool spec, inspect the live engine schema, run a real search and stream the agent's tool calls.">
+</head>
+<body>
+<div class="wrap">
+
+  <span class="eyebrow">LlamaIndex · Tutorial</span>
+  <h1>Live Web Search for LlamaIndex Agents With Thordata</h1>
+  <p class="deck">A step-by-step guide to giving a LlamaIndex agent real-time search results: install the Thordata SERP tool spec, read the live engine schema it fetches, run a search, and let a <code>FunctionAgent</code> answer questions with data that did not exist when the model was trained.</p>
+  <p class="byline">Hands-on tutorial · ~20 min read · Verified on 28–29 September 2026 with <code>llama-index-tools-thordata-serp</code> 0.2.0 from PyPI, <code>llama-index-core</code> 0.14.25 and the Thordata production SERP endpoint</p>
+
+  <p>An LLM on its own knows what it was trained on. Ask it about this week's search results and it will either refuse or, worse, invent an answer. The fix is not a bigger model — it is giving the model a tool that fetches the current page and hands back structured data it can cite.</p>
+
+  <p>This tutorial builds exactly that, end to end, using the Thordata SERP tool for LlamaIndex. It is deliberately narrow: one tool family, three tools, one agent. No vector stores, no ingestion pipelines — this is the search half of the picture, wired so an agent can use it.</p>
+
+  <p>In this guide you will learn how to:</p>
+  <ul>
+    <li>Install <code>llama-index-tools-thordata-serp</code> and load <code>ThordataSerpToolSpec</code></li>
+    <li>List the engines the tool can reach — 34 of them in the current schema — and read one engine's parameter schema</li>
+    <li>Run a Google search from Python and read the normalized response envelope</li>
+    <li>Connect any OpenAI-compatible LLM and wrap the tools in a <code>FunctionAgent</code></li>
+    <li>Stream the agent's tool calls in a REPL so you can see the search happen</li>
+    <li>Extend the same agent to news, maps, shopping and scholar engines</li>
+  </ul>
+
+  <div class="toc">
+    <strong>What's inside</strong>
+    <ol>
+      <li>What LlamaIndex is, in one section</li>
+      <li>Why an agent needs live search — and why doing it yourself is expensive</li>
+      <li>The Thordata SERP tool: three tools, one envelope</li>
+      <li>Build the agent (project setup → token → tool → LLM → agent → REPL)</li>
+      <li>Extending it: more engines, more parameters, production notes</li>
+    </ol>
+  </div>
+
+  <h2 id="what-is-llamaindex">What Is LlamaIndex?</h2>
+
+  <p>LlamaIndex is an open-source Python framework for building applications on top of large language models. The project sits at around 52,000 stars on GitHub and is MIT licensed; the version this tutorial was written against is <code>llama-index-core</code> 0.14.25.</p>
+
+  <p>The pieces you need for this tutorial are three:</p>
+
+  <ul>
+    <li><strong>LLMs</strong> — a provider wrapper (<code>OpenAI</code>, <code>OpenAILike</code>, <code>Anthropic</code>, …) that normalizes chat and function-calling across vendors.</li>
+    <li><strong>Tools</strong> — Python callables the model is allowed to invoke, described to the model by a name, a description and a JSON schema for the arguments.</li>
+    <li><strong>Agents</strong> — the loop that puts the two together: the model decides to call a tool, the framework runs it, the result goes back into the conversation, and the loop repeats until the model answers.</li>
+  </ul>
+
+  <p>A <em>ToolSpec</em> is LlamaIndex's packaging convention for a group of related tools. That is the shape the Thordata integration ships in: one class, <code>ThordataSerpToolSpec</code>, that exposes three tools and can be dropped into any agent that accepts tools.</p>
+
+  <h2 id="why-live-search">Why Your LlamaIndex Agent Needs Live Search</h2>
+
+  <p>Three properties of large language models make search tools necessary rather than optional:</p>
+
+  <ul>
+    <li><strong>Training data has a cut-off.</strong> Anything dated after it — prices, releases, outages, regulations, this year's product comparisons — is simply unknown to the model.</li>
+    <li><strong>Models rarely say "I don't know."</strong> Asked about a recent event, a model without tools will often produce a fluent, plausible, wrong answer, complete with an invented citation.</li>
+    <li><strong>Chitchat is not evidence.</strong> Even when the model is roughly right, you usually need the source URL so a human can check it.</li>
+  </ul>
+
+  <p>The usual workaround — paste search results into the prompt by hand — does not survive contact with an agent, because the agent decides for itself which query to run and when. The tool has to be callable.</p>
+
+  <h3>Doing it yourself is where the cost hides</h3>
+
+  <p>Fetching a search engine results page looks like a ten-line script and behaves like a maintenance contract. You end up owning CAPTCHA and bot-detection handling, proxy rotation, per-country and per-language result targeting, HTML that changes without notice, and a parser for every engine you touch. The parsing is the part teams underestimate: the interesting fields rarely live in one list — news results, answer boxes, local packs and related questions all sit in different places per engine.</p>
+
+  <p>Thordata's SERP API exists to own that half. One HTTPS request returns parsed JSON for the engine you asked for, with proxy handling and geolocation included.</p>
+
+  <h3>The half the agent cares about</h3>
+
+  <p>Even with a good endpoint, an agent needs something a raw API does not give you: a set of parameters that is <em>discoverable at runtime</em>. Agents pick arguments themselves, and an agent that guesses a parameter name gets a 400 — or worse, silently searches the wrong thing.</p>
+
+  <p>The LlamaIndex package solves this with the schema Thordata publishes for its own playground. Before a request is sent, the tool checks your parameters against the live schema for the selected engine and drops anything that engine does not declare. That is the difference between "call this API" and "call this API from an agent": the tool is safe to expose to a model that has never read the docs.</p>
+
+  <h2 id="the-tool">The Thordata SERP Tool, in One Page</h2>
+
+  <p>The package is <code>llama-index-tools-thordata-serp</code> 0.2.0; the import path is <code>llama_index.tools.thordata_serp</code>. It requires Python 3.10 or newer and pulls in <code>llama-index-core</code> (&gt;=0.13.0, &lt;0.15), <code>pydantic</code> and <code>requests</code>.</p>
+
+  <p>One class — <code>ThordataSerpToolSpec</code> — exposes exactly three tools:</p>
+
+  <table>
+    <thead>
+      <tr><th>Tool</th><th>What it does</th><th>Why an agent needs it</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>list_engines()</code></td>
+        <td>Returns the schema version, the default engine, the schema source and a compact record (key, name, query field) for every engine.</td>
+        <td>The agent can discover that <code>google_news</code> or <code>google_maps</code> exist instead of hard-coding a guess.</td>
+      </tr>
+      <tr>
+        <td><code>get_engine_schema(engine)</code></td>
+        <td>Returns one engine's complete parameter groups and fields, including types and allowed values.</td>
+        <td>The agent can check which parameter a query needs — <code>q</code> for most engines, <code>departure_id</code> for flights, <code>url</code> for Lens.</td>
+      </tr>
+      <tr>
+        <td><code>search(engine, query, params, response_format, response_mode)</code></td>
+        <td>Validates the parameters against the schema, sends the request and returns the parsed result inside a normalized envelope.</td>
+        <td>This is the actual search; everything the model can control goes through this one signature.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p>Every tool returns a <strong>JSON string</strong>, not a Python object. Decode it with <code>json.loads</code> before reading fields. Successful calls and failures share one shape, so error handling never depends on exceptions:</p>
+
+<pre><code>{"ok": true, "status": 200, "engine": "google", "data": { ... }}
+
+{"ok": false, "error": {"type": "SerpApiError", "status_code": 401, "message": "..."}}</code></pre>
+
+  <p>Two more behaviours are worth knowing before you write any glue code:</p>
+
+  <ul>
+    <li><strong>The schema is fetched once and cached.</strong> The first call reports <code>schema_source: "remote"</code>; calls within the next five minutes report <code>"cache"</code>. If the remote schema cannot be reached before any schema is loaded, the package falls back to a snapshot bundled inside the wheel and reports <code>"snapshot"</code>. Only <code>list_engines</code> and <code>get_engine_schema</code> include that field — <code>search</code> returns <code>ok</code>, <code>status</code>, <code>engine</code> and <code>data</code>.</li>
+    <li><strong>Requests and responses are bounded.</strong> Request bodies are capped at 1 MB and responses at 10 MB, with a 120-second default timeout for searches and 30 seconds for the schema. The API Token is never echoed back: string values in responses are redacted if they contain it.</li>
+  </ul>
+
+  <div class="callout">
+    <p><strong>The tool never reads environment variables itself.</strong> The API Token is always passed in explicitly (<code>ThordataSerpToolSpec(api_key=...)</code> — <code>api_key</code> is the package's own argument name, and the value it takes is the Thordata API Token). That is deliberate — it keeps configuration in your application instead of hiding it inside a dependency — and it is why every example below reads the API Token from the environment and hands it over.</p>
+  </div>
+
+  <h2 id="build">Build a LlamaIndex Agent That Searches the Web</h2>
+
+  <h3>Prerequisites</h3>
+
+  <ul>
+    <li><strong>Python 3.10 or newer</strong> — the 0.2.0 metadata declares <code>&gt;=3.10,&lt;4.0</code>; this tutorial was verified on 3.12.</li>
+    <li><strong>A Thordata SERP API token</strong> — created in the dashboard, free trial credits included.</li>
+    <li><strong>An OpenAI-compatible LLM endpoint</strong> — a hosted provider API token, or a local server such as Ollama. The tool itself needs no LLM; only the agent does.</li>
+  </ul>
+
+  <h3><span class="step-num">1</span>Create the project</h3>
+
+  <p>Everything lives in one folder with its own virtual environment:</p>
+
+<pre><code>mkdir thordata-llama-agent
+cd thordata-llama-agent
+python -m venv .venv</code></pre>
+
+  <p>Activate it — the command differs per shell:</p>
+
+<pre><code># Windows (PowerShell)
+.venv\Scripts\Activate.ps1
+
+# Windows (cmd.exe)
+.venv\Scripts\activate.bat
+
+# macOS / Linux
+source .venv/bin/activate</code></pre>
+
+  <p>Then install the tool package along with <code>python-dotenv</code>, which the scripts below use to read the <code>.env</code> file. The tool package brings <code>llama-index-core</code>, <code>pydantic</code> and <code>requests</code> with it, so this is the only install you need for the first steps:</p>
+
+<pre><code>python -m pip install llama-index-tools-thordata-serp python-dotenv</code></pre>
+
+  <h3><span class="step-num">2</span>Keep the tokens in <code>.env</code></h3>
+
+  <p>Two credentials are involved: the Thordata API Token and the LLM's API Token. Put both in a <code>.env</code> file next to the code and never in the source:</p>
+
+<pre><code># Thordata SERP token, from the dashboard
+# (SERP API -> API Token, also reachable as API Playground -> Token)
+THORDATA_SERP_API_TOKEN=your-thordata-serp-token
+
+# Any OpenAI-compatible endpoint. The values below are a local Ollama server;
+# for a hosted provider use e.g. https://api.openai.com/v1 with your own model.
+LLM_BASE_URL=http://127.0.0.1:11434/v1
+LLM_MODEL=qwen3:1.7b
+LLM_API_TOKEN=ollama
+
+# Optional. Only needed for models whose context window LlamaIndex cannot look up.
+# LLM_CONTEXT_WINDOW=32768</code></pre>
+
+  <p>Add <code>.env</code> to your <code>.gitignore</code> as the first thing you do. A committed API Token is a cancelled token.</p>
+
+  <h3><span class="step-num">3</span>Get your Thordata SERP token</h3>
+
+  <p>Sign in to the <a href="https://dashboard.thordata.com/serp-api/get-started">Thordata dashboard</a> and copy your SERP token — the documentation points at it from two places: the SERP API page (<strong>SERP API → API Token</strong>) and <strong>API Playground → Token</strong>. If you have not generated a token yet, generate one first; the free trial credits sit on the same page.</p>
+
+  <figure>
+    <img src="images/01-dashboard-login.png" alt="The Thordata dashboard sign-in page with Google, GitHub and SSO options plus email and password fields">
+    <figcaption>The dashboard sign-in page. New accounts can sign up from the same screen; behind it, the docs point to the SERP token from <em>SERP API → API Token</em> and from <em>API Playground → Token</em>, and the page below shows the raw request that token authorises.</figcaption>
+  </figure>
+
+  <p>The token authenticates a plain HTTPS call, which is useful to see once before any Python is involved. The documentation's own first-request example is a good reference point, because the package you just installed is a wrapper around exactly this call:</p>
+
+  <figure>
+    <img src="images/02-docs-first-request.png" alt="Thordata documentation page 'Send Your First Request' showing a cURL example that POSTs engine=google, q=pizza and json=1 to scraperapi.thordata.com/request with a Bearer token">
+    <figcaption>The raw request the tool sends for you: POST to <code>scraperapi.thordata.com/request</code> with a Bearer token, <code>engine</code>, the query and <code>json=1</code>.</figcaption>
+  </figure>
+
+  <p>Under the hood, the tool posts to <code>https://scraperapi.thordata.com/request</code> with form-encoded fields (<code>engine</code>, the engine's query field, and <code>json</code>), and fetches the engine schema from <code>https://api.thordata.com/serp/playground/schema?lang=en</code>. You do not need to configure either one, but both can be overridden in the constructor if you route traffic through your own proxy.</p>
+
+  <h3><span class="step-num">4</span>Load the tool and look at what it can reach</h3>
+
+  <p>Save this as <code>tool_demo.py</code>. It calls the package with no agent and no LLM involved — the fastest way to confirm the token works and to see the schema for yourself:</p>
+
+<pre><code>"""Call the Thordata SERP tool directly - no agent, no LLM involved."""
+
+import json
+import os
+import textwrap
+
+from dotenv import load_dotenv
+from llama_index.tools.thordata_serp import ThordataSerpToolSpec
+
+load_dotenv()
+
+tool_spec = ThordataSerpToolSpec(api_key=os.environ["THORDATA_SERP_API_TOKEN"])
+
+# 1. Which engines can this tool reach?
+engines = json.loads(tool_spec.list_engines())
+keys = [engine["key"] for engine in engines["engines"]]
+print(f"1) Engines - schema v{engines['schema_version']} from {engines['schema_source']}")
+print(f"   {len(keys)} engines, default is {engines['default_engine']}")
+print(textwrap.fill(", ".join(keys[:10]), width=96, initial_indent="   ", subsequent_indent="   "))
+
+# 2. What parameters does the google engine accept?
+schema = json.loads(tool_spec.get_engine_schema("google"))
+fields = [field["key"] for group in schema["engine"]["groups"] for field in group["fields"]]
+print(f"\n2) The google engine accepts {len(fields)} parameters")
+print(textwrap.fill(", ".join(fields), width=96, initial_indent="   ", subsequent_indent="   "))
+
+# 3. Run a search and print the organic results.
+result = json.loads(
+    tool_spec.search(
+        engine="google",
+        query="best coffee grinders 2026",
+        params={"num": 3, "gl": "us", "hl": "en"},
+        response_mode="compact",
+    )
+)
+if not result["ok"]:
+    print(f"\n3) Search failed - {result['error']['type']}: {result['error']['message']}")
+    raise SystemExit(1)
+print(f"\n3) Search - ok={result['ok']} status={result['status']} engine={result['engine']}")
+for item in result["data"]["organic"]:
+    print(f"   {item['position']}. {item['title']}")
+    print(f"      {item['link']}")</code></pre>
+
+  <p>Run it with <code>python tool_demo.py</code>. Two things are worth pausing on in the output below. First, the schema came back from <code>remote</code>, not from the bundled snapshot. Second, the field list is the answer to "what can I pass?" — <code>num</code>, <code>gl</code>, <code>hl</code>, <code>tbs</code>, <code>safe</code>, <code>location</code> and twenty more for Google, all validated before anything is sent. The search block also checks <code>ok</code> before it reads any result field, so an invalid or expired token prints one readable line instead of a <code>KeyError</code> — the same guard the failure section below revisits.</p>
+
+  <figure class="wide">
+    <img src="images/03-tool-demo.png" alt="Windows console output of tool_demo.py: 34 engines with google as the default, the 26 parameters the google engine accepts, and three live organic results for 'best coffee grinders 2026'">
+    <figcaption>A real run: 34 engines, 26 parameters on the Google engine, and live organic results — all from one Python file and no LLM.</figcaption>
+  </figure>
+
+  <p>The engine list is not decoration. Grouped by provider, the live schema currently offers 26 Google engines (Search, AI Mode, Web, Shopping, Local, Videos, News, Flights, Images, Lens, Trends, Hotels, Play, Jobs, Scholar, Maps, Finance, Patents and their variants), 6 Bing engines (Search, Images, Videos, News, Maps, Shopping), Yandex Search and DuckDuckGo Search. Because the schema is fetched at runtime, that list can grow without a package release.</p>
+
+  <h3><span class="step-num">5</span>Read the response envelope</h3>
+
+  <p>Before handing the tool to a model, it is worth seeing exactly what the model will see. This snippet prints one news result and the envelope for a deliberately invalid token:</p>
+
+<pre><code>import json
+import os
+
+from dotenv import load_dotenv
+from llama_index.tools.thordata_serp import ThordataSerpToolSpec
+
+load_dotenv()
+
+tool_spec = ThordataSerpToolSpec(api_key=os.environ["THORDATA_SERP_API_TOKEN"])
+raw = tool_spec.search(
+    engine="google_news",
+    query="semiconductor supply chain",
+    response_mode="compact",
+)
+data = json.loads(raw)
+if not data["ok"]:
+    raise SystemExit(f"search failed: {data['error']}")
+print("envelope keys:", list(data.keys()), "| ok:", data["ok"], "| status:", data["status"])
+
+headline = data["data"]["news"][0]
+fields = {key: headline[key] for key in ("title", "source", "date", "link")}
+print(json.dumps(fields, indent=2, ensure_ascii=False))
+
+invalid_spec = ThordataSerpToolSpec(api_key="00000000000000000000000000000000")
+bad = json.loads(invalid_spec.search(engine="google", query="test"))
+print("\nbad token ->", json.dumps(bad))</code></pre>
+
+  <figure class="wide">
+    <img src="images/04-response-envelope.png" alt="Windows console output showing the envelope keys ok, status, engine and data, one news headline with source, date and link, and a normalized SerpApiError envelope with status_code 401 for an invalid token">
+    <figcaption>Top: a real news result inside the envelope. Bottom: the same envelope shape for a rejected token — a 401 that arrives as data, not as an exception.</figcaption>
+  </figure>
+
+  <p>The news result carries <code>title</code>, <code>link</code>, <code>source</code>, <code>date</code>, <code>snippet</code> and <code>image_url</code>; Google web results carry <code>position</code>, <code>title</code>, <code>link</code> and <code>description</code> under <code>data.organic</code>, alongside <code>people_also_ask</code> and <code>related</code> when the page has them. Other engines use their own key — <code>places</code> for Maps, <code>shopping</code> for Shopping, <code>organic_results</code> for Bing — which is why an agent should call <code>get_engine_schema</code> rather than assume one shape.</p>
+
+  <div class="callout">
+    <p><strong>Use <code>response_mode="compact"</code> in agent code.</strong> It removes <code>search_metadata</code>, <code>search_parameters</code>, <code>serpapi_pagination</code> and <code>request_metadata</code> from the payload at every nesting level. Those fields are useful when debugging a request and pure waste in a context window the model has to read.</p>
+  </div>
+
+  <div class="callout">
+    <p><strong>Leave <code>response_format</code> at its default.</strong> The tool sends it to the API as the <code>json</code> parameter and validates it locally: the accepted values are <code>"1"</code>, <code>"2"</code> and <code>"3"</code>, with <code>"1"</code> as the default. That accepted set does not line up with the engine schema's own list for the same field — <code>1</code> = JSON, <code>4</code> = Light JSON, <code>3</code> = HTML, <code>5</code> = Screenshot — so <code>"4"</code> and <code>"5"</code> cannot be requested at all (they come back as a validation error inside the envelope), while <code>"3"</code> is passed through even though the schema defines it as HTML. In our runs the endpoint returned the same parsed JSON for <code>1</code>, <code>2</code> and <code>3</code>, which is why the default is the safe choice for an agent.</p>
+  </div>
+
+  <h3><span class="step-num">6</span>Connect an LLM</h3>
+
+  <p>The tool spec is complete without a model, but an agent is not. Install an OpenAI-compatible client — this one also works against any server that speaks the same API, which is what makes local models and self-hosted gateways usable here:</p>
+
+<pre><code>python -m pip install llama-index-llms-openai-like</code></pre>
+
+  <p>The agent code below reads three values from <code>.env</code>: <code>LLM_BASE_URL</code>, <code>LLM_MODEL</code> and <code>LLM_API_TOKEN</code>. Point them at OpenAI, at a local Ollama server, at vLLM, or at any provider that exposes an OpenAI-compatible endpoint — the code does not change. (If you use OpenAI's own models, <code>OpenAI</code> from <code>llama-index-llms-openai</code> works too; that class validates model names against OpenAI's catalogue, which is the one thing <code>OpenAILike</code> does not do.)</p>
+
+  <h3><span class="step-num">7</span>Define the agent</h3>
+
+  <p><code>FunctionAgent</code> is LlamaIndex's function-calling agent: it hands the tool schemas to the model, executes the calls the model asks for, and loops until the model answers. The system prompt is doing real work here — it tells the model to search <em>before</em> answering and to cite what it used, which is what keeps the answer grounded. Wrap it in a <code>build_agent()</code> function so the REPL can build the agent once at startup:</p>
+
+<pre><code>"""A LlamaIndex agent that answers questions with live Thordata SERP data."""
+
+import asyncio
+import os
+
+from dotenv import load_dotenv
+from llama_index.core.agent.workflow import FunctionAgent, ToolCallResult
+from llama_index.llms.openai_like import OpenAILike
+from llama_index.tools.thordata_serp import ThordataSerpToolSpec
+
+load_dotenv()
+
+SYSTEM_PROMPT = (
+    "You are a research assistant with a live web search tool. "
+    "Always call the search tool before you answer, keep the answer under 120 words, "
+    "and cite the result URLs you used."
+)
+
+
+def build_agent() -> FunctionAgent:
+    """Wire the Thordata SERP tools and an OpenAI-compatible LLM into one agent."""
+    tool_spec = ThordataSerpToolSpec(api_key=os.environ["THORDATA_SERP_API_TOKEN"])
+    llm = OpenAILike(
+        model=os.environ["LLM_MODEL"],
+        api_base=os.environ["LLM_BASE_URL"],
+        api_key=os.environ["LLM_API_TOKEN"],
+        is_chat_model=True,
+        is_function_calling_model=True,
+        context_window=int(os.environ.get("LLM_CONTEXT_WINDOW", "32768")),
+        timeout=300,
+    )
+    return FunctionAgent(
+        tools=tool_spec.to_tool_list(),
+        llm=llm,
+        system_prompt=SYSTEM_PROMPT,
+    )</code></pre>
+
+  <p>Three details in that block are easy to miss and each one costs an hour if you do:</p>
+
+  <ul>
+    <li><code>to_tool_list()</code> is what converts the ToolSpec into the tool objects the agent accepts. Passing the ToolSpec itself will not work.</li>
+    <li><code>is_chat_model</code> and <code>is_function_calling_model</code> must be set to <code>True</code> for any non-OpenAI model name. The flags are read when a request is built, not when the agent is constructed, so a mistake here surfaces on the first <code>agent.run()</code> — and the two flags fail differently: without <code>is_function_calling_model</code> you get <em>"LLM must be a FunctionCallingLLM"</em>; with that flag set but <code>is_chat_model</code> left at its default, the call goes to the completions endpoint instead of chat completions and fails with <em>"AsyncCompletions.create() got an unexpected keyword argument 'tools'"</em>.</li>
+    <li><code>context_window</code> has to be declared for the same reason — the framework cannot look up an unknown model name, and the default placeholder is far too small for a page of search results.</li>
+  </ul>
+
+  <h3><span class="step-num">8</span>Build the REPL</h3>
+
+  <p>Finally, a loop that asks a question and — this is the useful part — prints every tool call as it happens, using the real tool name and the arguments the model chose. Without it a slow answer looks like a hang; with it you can see that the model actually searched, and a metadata call such as <code>list_engines()</code> can never be mistaken for a search:</p>
+
+<pre><code>async def ask(agent: FunctionAgent, question: str) -> str:
+    """Run one turn and report every tool call while the agent works."""
+    handler = agent.run(question)
+    async for event in handler.stream_events():
+        if isinstance(event, ToolCallResult):
+            print(f"  [tool] {event.tool_name}({event.tool_kwargs})")
+    return str(await handler)
+
+
+async def main() -> None:
+    agent = build_agent()
+    print("Thordata SERP agent ready - ask a question, or type 'exit'.")
+    while True:
+        question = input("\nYou: ").strip()
+        if question.lower() in {"exit", "quit"}:
+            break
+        if question:
+            print(f"\nAgent: {await ask(agent, question)}")
+
+
+if __name__ == "__main__":
+    asyncio.run(main())</code></pre>
+
+  <p>Steps 7 and 8 together are the complete file — imports, agent and REPL — and it ships as <code>code/agent.py</code> next to this page. Copy it into the project you created in step 1 and run it:</p>
+
+<pre><code>python agent.py</code></pre>
+
+  <h3><span class="step-num">9</span>Run it</h3>
+
+  <p>Here is a real session. The question needs data from 2026, the model calls the search tool once with a query of its own choosing, and the answer cites two URLs that came back in that response:</p>
+
+  <figure class="wide">
+    <img src="images/05-agent-session.png" alt="Windows console running agent.py: the question 'What are the best budget coffee grinders in 2026? Name two with links.', the logged tool call with query 'best budget coffee grinders 2026', and a short answer citing coffeegeek.com and coffeechronicler.com links">
+    <figcaption>A real session against the production SERP endpoint: one tool call, then an answer whose citations are the result URLs from that call.</figcaption>
+  </figure>
+
+  <p>Two checks make that screenshot trustworthy rather than merely convincing, and both are worth repeating with your own questions. The <code>[tool]</code> line names the tool the model actually called and prints the arguments it chose — <code>search</code> with a query, an engine and a response format in this run — so a metadata call such as <code>list_engines()</code> can never be mistaken for a search. And the cited links can be compared against the raw response for that query: in this run the top results were <code>coffeegeek.com</code> at position 1 and <code>coffeechronicler.com</code> at position 2, which is exactly what the answer cites.</p>
+
+  <div class="callout">
+    <p><strong>Grounding is a property of your prompt and your model, not of the tool.</strong> In a second run of the same question, the local model kept the right search and the right top result, then attributed the second citation to a domain that was not in the response at all — a plausible-looking URL it invented. The tool returned clean data; the model embellished it. So keep two habits: log the tool calls, and spot-check that the URLs in an answer actually appear in the tool result.</p>
+  </div>
+
+  <h2 id="next-steps">Taking It Further</h2>
+
+  <h3>Ask a different engine</h3>
+
+  <p>Nothing about the agent is Google-specific. The engine is just an argument — the same tool covers news, maps and shopping, and the agent can pick the engine itself once <code>list_engines</code> is available to it:</p>
+
+<pre><code>news = tool_spec.search(engine="google_news", query="ai regulation", response_mode="compact")
+places = tool_spec.search(engine="google_maps", query="coffee shops in seattle", params={"num": 3}, response_mode="compact")
+prices = tool_spec.search(engine="google_shopping", query="espresso machine", params={"num": 3}, response_mode="compact")
+papers = tool_spec.search(engine="google_scholar", query="retrieval augmented generation", params={"num": 3}, response_mode="compact")</code></pre>
+
+  <p>Each returns its own result key — <code>news</code>, <code>places</code>, <code>shopping</code>, <code>organic</code> — so if you consume them in code rather than through an agent, keep a small mapping table instead of assuming one field name.</p>
+
+  <h3>Parameters that are worth setting explicitly</h3>
+
+  <p>The schema is the contract, and three Google parameters earn their place in almost every call:</p>
+
+  <ul>
+    <li><code>num</code> — how many results to return. Ten results of raw JSON is a lot of context; three is usually enough for a summary.</li>
+    <li><code>gl</code> — the country whose Google you are querying. Result sets differ per country, and a model has no way to infer which one you meant.</li>
+    <li><code>hl</code> — the interface language.</li>
+  </ul>
+
+  <p>Anything you pass that the selected engine does not declare is dropped before the request is sent, so a typo degrades into a default search rather than an error. That is forgiving in production and confusing while debugging — if a parameter seems to have no effect, call <code>get_engine_schema</code> and check the spelling against the field list.</p>
+
+  <h3>Handle failures in one place</h3>
+
+  <p>Because every tool returns the same envelope, error handling is a single branch — including upstream failures, which arrive as <code>ok: false</code> with a status code:</p>
+
+<pre><code>result = json.loads(tool_spec.search(engine="google", query="coffee"))
+if not result["ok"]:
+    print(result["error"]["type"], result["error"].get("status_code"), result["error"]["message"])</code></pre>
+
+  <p>In an agent, the same envelope is handed to the model, which means a failed search becomes something the model can react to — retry with a different query, or tell the user what it could not find — instead of an exception that ends the run.</p>
+
+  <h3>Production notes</h3>
+
+  <ul>
+    <li><strong>Reuse one ToolSpec per process.</strong> The schema cache lives on the instance, so building a new one per request throws away the five-minute cache and re-fetches the schema.</li>
+    <li><strong>Expect the schema to change.</strong> Engines and fields are published by the API, not frozen in the package. Read <code>schema_source</code> when you need to know whether a run used a live schema, a cached one or the bundled snapshot.</li>
+    <li><strong>Budget the tokens, not just the credits.</strong> Every search result you return is context the model must read. <code>response_mode="compact"</code> and a small <code>num</code> are cheaper than a larger context window.</li>
+    <li><strong>Keep the API Token out of prompts and logs.</strong> The package redacts it from responses, but a token printed by your own code is still leaked.</li>
+  </ul>
+
+  <h2 id="conclusion">Conclusion</h2>
+
+  <p>Pairing LlamaIndex with Thordata's SERP API gives you an agent built on two things you control: the tool runs in your own process, and every answer is fetched live at the moment it is asked for. The integration is small enough to read in one sitting — three tools and one envelope — and every part of it is swappable: change the engine, the query parameters, the LLM or the system prompt without touching the rest.</p>
+
+  <p>The same shape reaches well past Google web results. The tool exposes the platform's whole engine catalogue, so one argument is all it takes to move from web pages to news, shopping prices, scholarly papers, local listings or search trends — and because <code>get_engine_schema</code> tells the model what each engine accepts, the agent can make that choice itself. When you also need your own documents in the answer, feeding these results into a LlamaIndex index is the framework's other half, and it does not change anything above.</p>
+
+  <p>To point it at your own account, create an API token in the <a href="https://www.thordata.com">Thordata dashboard</a> and keep <a href="https://doc.thordata.com">doc.thordata.com</a> open for the parameter reference — the SERP API section documents what each engine accepts. The two scripts and every screenshot used above are in this folder.</p>
+
+</div>
+</body>
+</html>

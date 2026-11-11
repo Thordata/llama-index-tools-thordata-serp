@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "llama-index-tools-thordata-serp"
-version = "0.1.1"
+version = "0.2.0"
 description = "Thordata SERP tools for LlamaIndex agents."
 readme = "README.md"
 requires-python = ">=3.10,<4.0"
@@ -52,7 +52,7 @@ import_path = "llama_index.tools.thordata_serp"
 ThordataSerpToolSpec = "Thordata"
 
 [tool.hatch.build.targets.sdist]
-include = ["llama_index/", "README.md", "LICENSE"]
+include = ["llama_index/", "README.md", "CHANGELOG.md", "LICENSE"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["llama_index"]

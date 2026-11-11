@@ -5,6 +5,11 @@ import requests
 import responses
 
 from llama_index.tools.thordata_serp import base as tool_spec_module
+from llama_index.tools.thordata_serp.web_scraper import (
+    WEB_SCRAPER_BUILDER_URL,
+    WEB_SCRAPER_DOWNLOAD_URL,
+    WEB_SCRAPER_TASK_API_BASE_URL,
+)
 
 
 ThordataSerpToolSpec = tool_spec_module.ThordataSerpToolSpec
@@ -26,6 +31,82 @@ def make_spec(**kwargs):
         serp_endpoint=SERP_ENDPOINT,
         **kwargs,
     )
+
+
+def test_tool_spec_registers_web_scraper_input_schema():
+    spec = make_spec()
+
+    assert "scrape" in spec.spec_functions
+    assert spec.get_fn_schema_from_fn_name("scrape") is tool_spec_module.ScrapeInput
+
+
+@responses.activate
+def test_scrape_returns_records_and_task_metadata():
+    task_id = "tool-task-1"
+    responses.add(
+        responses.POST,
+        WEB_SCRAPER_BUILDER_URL,
+        json={"code": 200, "data": {"task_id": task_id}},
+    )
+    responses.add(
+        responses.POST,
+        f"{WEB_SCRAPER_TASK_API_BASE_URL}/tasks-status",
+        json={"code": 200, "data": [{"task_id": task_id, "status": "Ready"}]},
+    )
+    responses.add(
+        responses.POST,
+        f"{WEB_SCRAPER_TASK_API_BASE_URL}/tasks-download",
+        json={
+            "code": 200,
+            "data": {
+                "tasks_ids": task_id,
+                "download": f"{WEB_SCRAPER_DOWNLOAD_URL}?task_id={task_id}&type=json&api_key={API_KEY}",
+            },
+        },
+    )
+    responses.add(
+        responses.GET,
+        f"{WEB_SCRAPER_DOWNLOAD_URL}?task_id={task_id}&type=json&api_key={API_KEY}",
+        json=[{"name": "Acme", "success": True}],
+    )
+
+    payload = result(
+        make_spec().scrape(
+            "linkedin_company_information_by-url",
+            {"url": "https://www.linkedin.com/company/acme"},
+        )
+    )
+
+    assert payload == {
+        "ok": True,
+        "status": "completed",
+        "spider_id": "linkedin_company_information_by-url",
+        "task_id": task_id,
+        "record_count": 1,
+        "error_record_count": 0,
+        "records": [{"name": "Acme", "success": True}],
+    }
+
+
+@responses.activate
+def test_scrape_returns_safe_error_envelope():
+    responses.add(
+        responses.POST,
+        WEB_SCRAPER_BUILDER_URL,
+        json={"code": 401, "message": f"invalid token={API_KEY}"},
+    )
+
+    payload = result(
+        make_spec().scrape(
+            "linkedin_company_information_by-url",
+            {"url": "https://www.linkedin.com/company/acme"},
+        )
+    )
+
+    assert payload["ok"] is False
+    assert payload["error"]["code"] == "authentication_failed"
+    assert payload["error"]["stage"] == "submit"
+    assert API_KEY not in json.dumps(payload)
 
 
 @responses.activate
@@ -358,15 +439,26 @@ def test_input_schemas_and_tool_metadata_are_agent_usable():
     assert fields["params"].annotation == dict | None
     assert set(fields["response_format"].annotation.__args__) == {"1", "2", "3"}
     assert set(fields["response_mode"].annotation.__args__) == {"complete", "compact"}
+    scrape_fields = tool_spec_module.ScrapeInput.model_fields
+    assert scrape_fields["spider_id"].is_required()
+    assert scrape_fields["max_wait_seconds"].default == 300
+    assert scrape_fields["include_errors"].default is True
+    assert scrape_fields["file_name"].default == "{{TasksID}}"
 
     tools = make_spec().to_tool_list()
 
-    assert [tool.metadata.name for tool in tools] == ["list_engines", "get_engine_schema", "search"]
+    assert [tool.metadata.name for tool in tools] == [
+        "list_engines",
+        "get_engine_schema",
+        "search",
+        "scrape",
+    ]
     assert all(tool.metadata.description for tool in tools)
     assert [tool.metadata.fn_schema for tool in tools] == [
         tool_spec_module.ListEnginesInput,
         tool_spec_module.GetEngineSchemaInput,
         tool_spec_module.SearchInput,
+        tool_spec_module.ScrapeInput,
     ]
 
 

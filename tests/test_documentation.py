@@ -12,6 +12,7 @@ PROJECT_ROOT = Path(__file__).parents[1]
 README = PROJECT_ROOT / "README.md"
 PYPROJECT = PROJECT_ROOT / "pyproject.toml"
 LICENSE = PROJECT_ROOT / "LICENSE"
+CHANGELOG = PROJECT_ROOT / "CHANGELOG.md"
 
 
 def readme() -> str:
@@ -21,7 +22,7 @@ def readme() -> str:
 def test_readme_documents_the_public_tools_and_safe_setup():
     document = readme()
 
-    for tool_name in ("list_engines", "get_engine_schema", "search"):
+    for tool_name in ("list_engines", "get_engine_schema", "search", "scrape"):
         assert f"`{tool_name}`" in document
     assert "python -m pip install llama-index-tools-thordata-serp" in document
     assert 'os.environ["THORDATA_SERP_API_KEY"]' in document
@@ -62,6 +63,26 @@ def test_readme_examples_match_the_public_api_and_response_contract():
     assert 'python -m pip install "llama-index-llms-openai>=0.5.0,<0.7.0"' in document
     assert "The ToolSpec methods and HTTP client are synchronous." in document
     assert "async ToolSpec" not in document
+    assert "max_wait_seconds=300" in document
+    assert 'include_errors=True' in document
+    assert 'file_name="{{TasksID}}"' in document
+    assert "records" in document
+    assert "record_count" in document
+    assert "error_record_count" in document
+    assert '"status": "completed"' in document
+    assert "partial" in document
+    assert "empty" in document
+    assert "polled every 5 seconds" in document
+    for spider_id in (
+        "linkedin_company_information_by-url",
+        "linkedin_job_listings_information_by-job-url",
+        "youtube_video-post_by-keyword",
+        "facebook_profile_by-profiles-url",
+        "youtube_video-post_by-explore",
+        "twitter_profile_by-profileurl",
+        "amazon_product_by-category-url",
+    ):
+        assert spider_id in document
     assert 'api_key=os.environ["OPENAI_API_KEY"]' in document
     assert "`OPENAI_API_KEY` environment variable" in document
     assert "For POSIX shells:" in document
@@ -89,6 +110,20 @@ def test_readme_examples_match_the_public_api_and_response_contract():
     assert search_signature.parameters["response_mode"].default == "complete"
     assert "api_key: str" in str(inspect.signature(ThordataSerpToolSpec))
 
+    scrape_signature = inspect.signature(ThordataSerpToolSpec.scrape)
+    assert list(scrape_signature.parameters) == [
+        "self",
+        "spider_id",
+        "params",
+        "max_wait_seconds",
+        "include_errors",
+        "file_name",
+    ]
+    assert scrape_signature.parameters["params"].default is None
+    assert scrape_signature.parameters["max_wait_seconds"].default == 300
+    assert scrape_signature.parameters["include_errors"].default is True
+    assert scrape_signature.parameters["file_name"].default == "{{TasksID}}"
+
     snippets = re.findall(r"```python\n(.*?)```", document, flags=re.DOTALL)
     assert snippets
     for snippet in snippets:
@@ -99,11 +134,9 @@ def test_project_metadata_matches_the_documented_public_package():
     metadata = tomllib.loads(PYPROJECT.read_text(encoding="utf-8"))
     document = readme()
 
-    from llama_index.tools.thordata_serp import __version__
-
     project = metadata["project"]
     assert project["name"] == "llama-index-tools-thordata-serp"
-    assert project["version"] == __version__
+    assert project["version"] == "0.2.0"
     assert project["authors"] == [{"name": "Thordata"}]
     assert metadata["tool"]["llamahub"]["import_path"] == "llama_index.tools.thordata_serp"
     assert metadata["tool"]["llamahub"]["class_authors"] == {"ThordataSerpToolSpec": "Thordata"}
@@ -125,6 +158,9 @@ def test_project_metadata_matches_the_documented_public_package():
     ):
         assert public_value in document
     assert "tomli>=2,<3; python_version < '3.11'" in metadata["project"]["optional-dependencies"]["dev"]
+    changelog = CHANGELOG.read_text(encoding="utf-8")
+    assert "## 0.2.0" in changelog
+    assert "concatenated JSON" in changelog
 
 
 def test_license_is_standard_mit_for_thordata_2026():
