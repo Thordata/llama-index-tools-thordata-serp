@@ -134,9 +134,11 @@ def test_project_metadata_matches_the_documented_public_package():
     metadata = tomllib.loads(PYPROJECT.read_text(encoding="utf-8"))
     document = readme()
 
+    from llama_index.tools.thordata_serp import __version__
+
     project = metadata["project"]
     assert project["name"] == "llama-index-tools-thordata-serp"
-    assert project["version"] == "0.2.0"
+    assert project["version"] == __version__
     assert project["authors"] == [{"name": "Thordata"}]
     assert metadata["tool"]["llamahub"]["import_path"] == "llama_index.tools.thordata_serp"
     assert metadata["tool"]["llamahub"]["class_authors"] == {"ThordataSerpToolSpec": "Thordata"}
@@ -159,7 +161,7 @@ def test_project_metadata_matches_the_documented_public_package():
         assert public_value in document
     assert "tomli>=2,<3; python_version < '3.11'" in metadata["project"]["optional-dependencies"]["dev"]
     changelog = CHANGELOG.read_text(encoding="utf-8")
-    assert "## 0.2.0" in changelog
+    assert f"## {__version__}" in changelog
     assert "concatenated JSON" in changelog
 
 
