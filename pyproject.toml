@@ -45,7 +45,7 @@ Repository = "https://github.com/Thordata/llama-index-tools-thordata-serp"
 Issues = "https://github.com/Thordata/llama-index-tools-thordata-serp/issues"
 
 [tool.llamahub]
-contains_example = true
+contains_example = false
 import_path = "llama_index.tools.thordata_serp"
 
 [tool.llamahub.class_authors]
